@@ -19,7 +19,7 @@ jobs:
   test:
     name: "Test (Go ${{ matrix.go-version }} on ${{ matrix.os }})"
     runs-on: "${{ matrix.os }}"
-    timeout-minutes: 15
+    timeout-minutes: 100
     permissions:
       contents: "read"
     strategy:
@@ -57,10 +57,10 @@ jobs:
             **/go.mod
             **/go.sum
 
-      - name: "Install Frontend Tools (PostCSS & Tailwind)"
+      - name: "Install Frontend Tools (PostCSS, Tailwind & Babel)"
         shell: "bash"
         run: |
-          npm install -g postcss postcss-cli tailwindcss @tailwindcss/cli
+          npm install -g postcss postcss-cli tailwindcss @tailwindcss/cli @tailwindcss/typography @babel/core @babel/cli
 
       - name: "Set up Ruby 3.4.5"
         uses: "ruby/setup-ruby@v1"
