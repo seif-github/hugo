@@ -10,9 +10,9 @@ env:
   "GOPROXY": "https://proxy.golang.org"
   "GO111MODULE": "on"
   "SASS_VERSION": "1.80.3"
-  "SASS_SHA256_LINUX": "" # TODO: set actual SHA256 for Linux
-  "SASS_SHA256_MACOS": "" # TODO: set actual SHA256 for macOS
-  "SASS_SHA256_WINDOWS": "" # TODO: set actual SHA256 for Windows
+  "SASS_SHA256_LINUX": "ec3603cf5dce41ae2c629d7d3f0edac3a5b105249314fed0df31c04675acdaba"
+  "SASS_SHA256_WINDOWS": "7c8e3d6d92e27680dfe95490afdf06a70c24b4b8a577ac5e5d940ed2edf200da9"
+  "SASS_SHA256_MACOS": "d8c72761252ad53b33dd43ae488755499231231fd6928fd76f4abd0d3fbde890c"
   "HUGO_BUILD_TAGS": "extended,withdeploy"
 
 jobs:
@@ -87,7 +87,8 @@ jobs:
         run: |
           set -euxo pipefail
           go install github.com/magefile/mage@v1.15.0
-          go install github.com/gohugoio/hugo/tools/goat@latest
+          cd tools/goat
+          go install .
 
       - name: "Install Pandoc on Ubuntu"
         if: "matrix.os == 'ubuntu-latest'"
