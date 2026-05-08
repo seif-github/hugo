@@ -57,6 +57,11 @@ jobs:
             **/go.mod
             **/go.sum
 
+      - name: "Install PostCSS (Required for integration tests)"
+        shell: "bash"
+        run: |
+          npm install -g postcss postcss-cli
+
       - name: "Set up Ruby 3.4.5"
         uses: "ruby/setup-ruby@v1"
         with:
