@@ -44,6 +44,12 @@ jobs:
           docker image prune -af || true
           sudo rm -rf /opt/hostedtoolcache || true
 
+      - name: "Get Actual Hash (Temporary)"
+        shell: "bash"
+        run: |
+          curl -L -o dart-sass.tar.gz "https://github.com/sass/dart-sass/releases/download/${SASS_VERSION}/dart-sass-${SASS_VERSION}-linux-x64.tar.gz"
+          sha256sum dart-sass.tar.gz
+
       - name: "Checkout code"
         uses: "actions/checkout@v4"
 
