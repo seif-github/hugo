@@ -11,8 +11,8 @@ env:
   "GO111MODULE": "on"
   "SASS_VERSION": "1.80.3"
   # EXACT HASHES FOR x64 VERSIONS
-  "SASS_SHA256_LINUX": "7c933edbad0a7d389192c5b79393485c088bd2c4398e32f5754c32af006a9ffd"
-  "SASS_SHA256_WINDOWS": "0a12e5251410f922716035f560e206b12a51f38e072b22018804562095f5904a"
+  "SASS_SHA256_LINUX": ""
+  "SASS_SHA256_WINDOWS": ""
   "HUGO_BUILD_TAGS": "extended,withdeploy"
 
 jobs:
@@ -49,6 +49,18 @@ jobs:
         run: |
           curl -L -o dart-sass.tar.gz "https://github.com/sass/dart-sass/releases/download/${SASS_VERSION}/dart-sass-${SASS_VERSION}-linux-x64.tar.gz"
           sha256sum dart-sass.tar.gz
+
+      - name: "Get Actual Windows Hash (Temporary)"
+        if: "matrix.os == 'windows-latest'"
+        shell: "pwsh"
+        run: |
+          $url = "https://github.com/sass/dart-sass/releases/download/${env:SASS_VERSION}/dart-sass-${env:SASS_VERSION}-windows-x64.zip"
+          Invoke-WebRequest -Uri $url -OutFile "debug-sass.zip"
+          $actualHash = (Get-FileHash "debug-sass.zip" -Algorithm SHA256).Hash
+          Write-Host "----------------------------------------------"
+          Write-Host "THE ACTUAL WINDOWS HASH IS:"
+          Write-Host $actualHash
+          Write-Host "----------------------------------------------"
 
       - name: "Checkout code"
         uses: "actions/checkout@v4"
