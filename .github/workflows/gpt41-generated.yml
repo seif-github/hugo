@@ -57,10 +57,10 @@ jobs:
             **/go.mod
             **/go.sum
 
-      - name: "Install PostCSS (Required for integration tests)"
+      - name: "Install Frontend Tools (PostCSS & Tailwind)"
         shell: "bash"
         run: |
-          npm install -g postcss postcss-cli
+          npm install -g postcss postcss-cli tailwindcss @tailwindcss/cli
 
       - name: "Set up Ruby 3.4.5"
         uses: "ruby/setup-ruby@v1"
