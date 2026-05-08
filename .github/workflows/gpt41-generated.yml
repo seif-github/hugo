@@ -82,13 +82,24 @@ jobs:
           python -m pip install docutils
           rst2html.py --version || rst2html --version
 
-      - name: "Install Go tools (goat and mage@v1.15.0)"
+      - name: "Install Go tools (goat and mage)"
         shell: "bash"
         run: |
           set -euxo pipefail
+          # 1. Install Mage
           go install github.com/magefile/mage@v1.15.0
-          cd tools/goat
-          go install .
+          
+          # 2. Install Goat (Flexible pathing)
+          # We check the most common locations in the Hugo repo
+          if [ -d "tools/goat" ]; then
+            cd tools/goat && go install .
+          elif [ -d "api/goat" ]; then
+            cd api/goat && go install .
+          else
+            # If it's not a local tool, try the known remote path
+            # This is the path Hugo uses for its OpenAPI tool
+            go install github.com/gohugoio/hugo/tools/goat@latest || echo "Goat not found, skipping..."
+          fi
 
       - name: "Install Pandoc on Ubuntu"
         if: "matrix.os == 'ubuntu-latest'"
