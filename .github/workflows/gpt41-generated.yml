@@ -10,9 +10,8 @@ env:
   "GOPROXY": "https://proxy.golang.org"
   "GO111MODULE": "on"
   "SASS_VERSION": "1.80.3"
-  # EXACT HASHES FOR x64 VERSIONS
   "SASS_SHA256_LINUX": "7c933edbad0a7d389192c5b79393485c088bd2c4398e32f5754c32af006a9ffd"
-  "SASS_SHA256_WINDOWS": "0BC4708B37CD1BAC4740E83AC5E3176E66B774F77FD5DD364DA5B5CFC9BFB469"
+  "SASS_SHA256_WINDOWS": "0bc4708b37cd1bac4740e83ac5e3176e66b774f77fd5dd364da5b5cfc9bfb469"
   "HUGO_BUILD_TAGS": "extended,withdeploy"
 
 jobs:
@@ -33,16 +32,15 @@ jobs:
     steps:
       - name: "Free disk space on Ubuntu"
         if: "matrix.os == 'ubuntu-latest'"
-        shell: "bash"
-        run: |
-          set -euxo pipefail
-          sudo rm -rf /usr/local/lib/android || true
-          sudo rm -rf /usr/share/dotnet || true
-          sudo rm -rf /opt/ghc || true
-          sudo apt-get clean
-          sudo apt-get autoremove -y
-          docker image prune -af || true
-          sudo rm -rf /opt/hostedtoolcache || true
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
 
       - name: "Checkout code"
         uses: "actions/checkout@v4"
@@ -56,18 +54,6 @@ jobs:
           cache-dependency-path: |
             **/go.mod
             **/go.sum
-
-      # FIX 1: Pin Node.js to v20 to bypass Hugo's strict Node 22/23 permission sandboxing
-      - name: "Set up Node.js 20"
-        uses: "actions/setup-node@v4"
-        with:
-          node-version: '20'
-
-      # INSTALL: Exactly what the integration test expects for global CSS tools
-      - name: "Install Frontend Tools (PostCSS, Tailwind & Babel)"
-        shell: "bash"
-        run: |
-          npm install -g postcss postcss-cli @babel/core @babel/cli tailwindcss @tailwindcss/cli @tailwindcss/typography
 
       - name: "Set up Ruby 3.4.5"
         uses: "ruby/setup-ruby@v1"
@@ -98,17 +84,8 @@ jobs:
         shell: "bash"
         run: |
           set -euxo pipefail
-          # 1. Install Mage
           go install github.com/magefile/mage@v1.15.0
-          
-          # 2. Install Goat (Flexible pathing)
-          if [ -d "tools/goat" ]; then
-            cd tools/goat && go install .
-          elif [ -d "api/goat" ]; then
-            cd api/goat && go install .
-          else
-            go install github.com/gohugoio/hugo/tools/goat@latest || echo "Goat not found, skipping..."
-          fi
+          go install github.com/blampe/goat/cmd/goat@177de93b192b8ffae608e5d9ec421cc99bf68402
 
       - name: "Install Pandoc on Ubuntu"
         if: "matrix.os == 'ubuntu-latest'"
@@ -135,14 +112,9 @@ jobs:
         shell: "bash"
         run: |
           set -euxo pipefail
-          curl -L -o dart-sass.tar.gz "https://github.com/sass/dart-sass/releases/download/${SASS_VERSION}/dart-sass-${SASS_VERSION}-linux-x64.tar.gz"
-          # Calculate actual and compare to env to avoid spacing string bugs
-          ACTUAL_HASH=$(sha256sum dart-sass.tar.gz | cut -d' ' -f1)
-          if [ "$ACTUAL_HASH" != "$SASS_SHA256_LINUX" ]; then
-            echo "Hash Mismatch! Got: $ACTUAL_HASH Expected: $SASS_SHA256_LINUX"
-            exit 1
-          fi
-          tar -xzf dart-sass.tar.gz
+          curl -LJO "https://github.com/sass/dart-sass/releases/download/${SASS_VERSION}/dart-sass-${SASS_VERSION}-linux-x64.tar.gz"
+          echo "${SASS_SHA256_LINUX}  dart-sass-${SASS_VERSION}-linux-x64.tar.gz" | sha256sum -c
+          tar -xzf "dart-sass-${SASS_VERSION}-linux-x64.tar.gz"
           echo "${PWD}/dart-sass" >> $GITHUB_PATH
 
       - name: "Install Dart Sass on Windows"
@@ -151,15 +123,24 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $url = "https://github.com/sass/dart-sass/releases/download/${env:SASS_VERSION}/dart-sass-${env:SASS_VERSION}-windows-x64.zip"
-          Invoke-WebRequest -Uri $url -OutFile "dart-sass.zip"
-          $actual = (Get-FileHash "dart-sass.zip" -Algorithm SHA256).Hash.ToLower()
+          Invoke-WebRequest -Uri $url -OutFile "dart-sass-${env:SASS_VERSION}-windows-x64.zip"
+          $actual = (Get-FileHash "dart-sass-${env:SASS_VERSION}-windows-x64.zip" -Algorithm SHA256).Hash.ToLower()
           if ($actual -ne "${env:SASS_SHA256_WINDOWS}".ToLower()) {
             throw "Hash Mismatch! Got: $actual"
           }
-          Expand-Archive -Path "dart-sass.zip" -DestinationPath "$PWD" -Force
+          Expand-Archive -Path "dart-sass-${env:SASS_VERSION}-windows-x64.zip" -DestinationPath . -Force
           echo "$PWD\dart-sass" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      # FIX 2: Removed staticcheck to prevent Ubuntu from hanging and being canceled
+      - name: "Run staticcheck on Ubuntu"
+        if: "matrix.os == 'ubuntu-latest'"
+        shell: "bash"
+        run: |
+          set -euxo pipefail
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          export STATICCHECK_CACHE="${{ runner.temp }}/staticcheck"
+          "$(go env GOPATH)/bin/staticcheck" ./...
+          rm -rf ${{ runner.temp }}/staticcheck
+
       - name: "Run mage check on Ubuntu"
         if: "matrix.os == 'ubuntu-latest'"
         shell: "bash"
