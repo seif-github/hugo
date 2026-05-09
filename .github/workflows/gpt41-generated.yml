@@ -162,7 +162,7 @@ jobs:
           HUGO_BUILD_TAGS: "${{ env.HUGO_BUILD_TAGS }}"
         run: |
           set -euxo pipefail
-          # mage -v check
+          mage -v check
 
       - name: "Run mage test on Windows"
         if: "matrix.os == 'windows-latest'"
@@ -171,7 +171,7 @@ jobs:
           HUGO_BUILD_TAGS: "${{ env.HUGO_BUILD_TAGS }}"
         run: |
           $ErrorActionPreference = "Stop"
-          # mage -v test
+          mage -v test
 
       - name: "Dragonfly build and clean Go cache (Ubuntu only)"
         if: "matrix.os == 'ubuntu-latest'"
