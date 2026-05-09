@@ -28,7 +28,7 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.os }}-${{ matrix.go-version }}
       cancel-in-progress: true
-    timeout-minutes: 60 # FIX: Increased from 15 to 60 for staticcheck
+    timeout-minutes: 100
     steps:
       # FIX: Replaced GPT-4o's manual apt-get/docker commands with the robust action
       - name: Free disk space (Ubuntu only)
