@@ -9,10 +9,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.os }}-${{ matrix.go-version }}
-  cancel-in-progress: true
-
 env:
   GOPROXY: "https://proxy.golang.org"
   GO111MODULE: "on"
@@ -26,6 +22,11 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.os }}-${{ matrix.go-version }}
+      cancel-in-progress: true
+      
     strategy:
       fail-fast: false
       matrix:
