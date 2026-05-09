@@ -50,7 +50,7 @@ jobs:
         shell: "bash"
         run: |
           if [ -f "common/hexec/exec_integration_test.go" ]; then
-            sed 's/func TestNPMGlobalInstalls/func skipped_TestNPMGlobalInstalls/' common/hexec/exec_integration_test.go > tmp.go && mv tmp.go common/hexec/exec_integration_test.go
+            awk '/func TestNPMGlobalInstalls\(/ {print; print "\tt.Skip(\"Bypassed upstream bug for CI\")"; next} 1' common/hexec/exec_integration_test.go > tmp.go && mv tmp.go common/hexec/exec_integration_test.go
           fi
 
       - name: "Set up Go"
