@@ -1,0 +1,146 @@
+name: "Test"
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+env:
+  GOPROXY: "https://proxy.golang.org"
+  GO111MODULE: "on"
+  SASS_VERSION: "1.80.3"
+  DART_SASS_SHA_LINUX: "7c933edbad0a7d389192c5b79393485c088bd2c4398e32f5754c32af006a9ffd"
+  DART_SASS_SHA_MACOS: "79e060b0e131c3bb3c16926bafc371dc33feab122bfa8c01aa337a072097967b"
+  DART_SASS_SHA_WINDOWS: "0bc4708b37cd1bac4740e83ac5e3176e66b774f77fd5dd364da5b5cfc9bfb469"
+
+jobs:
+  test:
+    name: "Test (Go ${{ matrix.go-version }}, ${{ matrix.os }})"
+    runs-on: "${{ matrix.os }}"
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ["1.26.x"]
+        os: ["ubuntu-latest", "windows-latest"]
+    steps:
+      - name: "Checkout repository"
+        uses: "actions/checkout@v4"
+
+      - name: "Set up Go"
+        uses: "actions/setup-go@v5"
+        with:
+          go-version: "${{ matrix.go-version }}"
+          cache: true
+
+      - name: "Install staticcheck"
+        if: "matrix.os == 'ubuntu-latest'"
+        run: "go install honnef.co/go/tools/cmd/staticcheck@latest"
+
+      - name: "Install gotmplfmt"
+        run: "go install github.com/gohugoio/gotmplfmt@latest"
+
+      - name: "Check embedded go template formatting"
+        if: "matrix.os == 'ubuntu-latest'"
+        run: "diff <(gotmplfmt -d tpl/tplimpl/embedded/templates) <(printf '')"
+
+      - name: "Run staticcheck"
+        if: "matrix.os == 'ubuntu-latest'"
+        run: |
+          export STATICCHECK_CACHE="${{ runner.temp }}/staticcheck"
+          staticcheck ./...
+          rm -rf ${{ runner.temp }}/staticcheck
+
+      - name: "Run gofmt formatting validation"
+        if: "matrix.os == 'ubuntu-latest'"
+        run: "test -z \"$(gofmt -l .)\""
+
+      - name: "Run go vet static analysis"
+        if: "matrix.os == 'ubuntu-latest'"
+        run: "go vet ./..."
+
+      - name: "Set up Node.js"
+        uses: "actions/setup-node@v4"
+        with:
+          node-version: "22"
+
+      - name: "Set up Ruby"
+        uses: "ruby/setup-ruby@v1"
+        with:
+          ruby-version: "3.4.5"
+
+      - name: "Set up Python"
+        uses: "actions/setup-python@v5"
+        with:
+          python-version: "3.x"
+
+      - name: "Install Mage"
+        run: "go install github.com/magefile/mage@v1.15.0"
+
+      - name: "Install asciidoctor"
+        run: |
+          gem install asciidoctor -v "2.0.26"
+          gem install asciidoctor-diagram -v "3.1.0"
+
+      - name: "Install GoAT"
+        run: "go install github.com/blampe/goat/cmd/goat@177de93b192b8ffae608e5d9ec421cc99bf68402"
+
+      - name: "Install docutils"
+        run: |
+          pip install docutils
+          rst2html --version
+
+      - name: "Install pandoc on Linux"
+        if: "matrix.os == 'ubuntu-latest'"
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y pandoc
+
+      - name: "Install pandoc on Windows"
+        if: "matrix.os == 'windows-latest'"
+        run: "choco install pandoc"
+
+      - name: "Verify pandoc"
+        run: "pandoc -v"
+
+      - name: "Install MinGW"
+        if: "matrix.os == 'windows-latest'"
+        run: "choco install mingw"
+
+      - name: "Install dart-sass Linux"
+        if: "matrix.os == 'ubuntu-latest'"
+        run: |
+          echo "Install Dart Sass version ${SASS_VERSION} ..."
+          curl -LJO "https://github.com/sass/dart-sass/releases/download/${SASS_VERSION}/dart-sass-${SASS_VERSION}-linux-x64.tar.gz"
+          echo "${DART_SASS_SHA_LINUX}  dart-sass-${SASS_VERSION}-linux-x64.tar.gz" | sha256sum -c
+          tar -xvf "dart-sass-${SASS_VERSION}-linux-x64.tar.gz"
+          echo "$GITHUB_WORKSPACE/dart-sass/" >> $GITHUB_PATH
+
+      - name: "Install dart-sass Windows"
+        if: "matrix.os == 'windows-latest'"
+        run: |
+          echo "Install Dart Sass version ${env:SASS_VERSION} ..."
+          curl -LJO "https://github.com/sass/dart-sass/releases/download/${env:SASS_VERSION}/dart-sass-${env:SASS_VERSION}-windows-x64.zip"
+          Expand-Archive -Path "dart-sass-${env:SASS_VERSION}-windows-x64.zip" -DestinationPath .
+          echo "$env:GITHUB_WORKSPACE/dart-sass/" | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf-8 -Append
+
+      - name: "Check"
+        if: "matrix.os != 'windows-latest'"
+        run: |
+          sass --version
+          mage -v check
+        env:
+          HUGO_BUILD_TAGS: "extended,withdeploy"
+
+      - name: "Test"
+        if: "matrix.os == 'windows-latest'"
+        run: "mage -v test"
+        env:
+          HUGO_BUILD_TAGS: "extended,withdeploy"
